@@ -114,51 +114,66 @@
             setTimeout(() => { btn.innerText = originalText; }, 1500);
         }
 
-        function findInText() {
-            const text = editor.value;
-            if (!text) return;
+       function findInText() {
+           const text = editor.value;
+           if (!text) return;
 
-            let query = prompt("Enter text to find:", lastSearchQuery);
-            if (query === null) return;
-            query = query.trim();
-            if (!query) return;
+    let query = prompt("Enter text to find:", lastSearchQuery);
+    if (query === null) return;
+    query = query.trim();
+    if (!query) return;
 
-            // If query changed, reset loop index
-            if (query !== lastSearchQuery) {
-                lastSearchQuery = query;
-                currentSearchIndex = 0;
-            }
+    // Remove any old brackets from a previous search before scanning
+    if (lastSearchQuery && query !== lastSearchQuery) {
+        const cleanOldText = text.replaceAll(`>>> ${lastSearchQuery} <<<`, lastSearchQuery);
+        editor.value = cleanOldText;
+    }
 
-            const lowerText = text.toLowerCase();
-            const lowerQuery = query.toLowerCase();
-            let positions = [];
-            let pos = lowerText.indexOf(lowerQuery);
+    // Hide the mobile keyboard immediately so it doesn't block the screen
+    document.activeElement.blur();
 
-            while (pos !== -1) {
-                positions.push(pos);
-                pos = lowerText.indexOf(lowerQuery, pos + 1);
-            }
+    const lowerText = editor.value.toLowerCase();
+    const lowerQuery = query.toLowerCase();
+    let positions = [];
+    let pos = lowerText.indexOf(lowerQuery);
 
-            if (positions.length === 0) {
-                alert("Text not found!");
-                return;
-            }
+    while (pos !== -1) {
+        positions.push(pos);
+        pos = lowerText.indexOf(lowerQuery, pos + 1);
+    }
 
-            // Loop back to the start if index overshoots the array size
-            if (currentSearchIndex >= positions.length) {
-                currentSearchIndex = 0;
-            }
+    if (positions.length === 0) {
+        alert("Text not found!");
+        return;
+    }
 
-            const targetPos = positions[currentSearchIndex];
-            editor.focus();
-            editor.setSelectionRange(targetPos, targetPos + query.length);
+    if (currentSearchIndex >= positions.length) {
+        currentSearchIndex = 0;
+    }
 
-            // Center view scrolling calculation
-            const lineHeight = 24;
-            const linesUpToMatch = text.substring(0, targetPos).split('\n').length - 1;
-            editor.scrollTop = linesUpToMatch * lineHeight - 40;
+    const targetPos = positions[currentSearchIndex];
+    
+    // Create a temporary visual highlight directly inside the text area
+    const before = editor.value.substring(0, targetPos);
+    const match = editor.value.substring(targetPos, targetPos + query.length);
+    const after = editor.value.substring(targetPos + query.length);
+    
+    // Inject visual arrow pointers around the word
+    editor.value = before + `>>> ${match} <<<` + after;
+    lastSearchQuery = query;
 
-            currentSearchIndex++;
+    // Highlight the newly injected string location
+    const newStart = targetPos;
+    const newEnd = targetPos + match.length + 8; // Accounts for the length of ">>>  <<<"
+    editor.focus();
+    editor.setSelectionRange(newStart, newEnd);
+
+    // Precise scroll jump calculation to bring it into absolute view
+    const lineHeight = 24;
+    const linesUpToMatch = before.split('\n').length - 1;
+    editor.scrollTop = linesUpToMatch * lineHeight - 40;
+
+    currentSearchIndex++;
         }
 
         editor.addEventListener('input', updateStats);
